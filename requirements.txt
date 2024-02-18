@@ -1,5 +1,5 @@
-requests
-beautifulsoup4
-python-telegram-bot
-opencv-python
-pandas
+beautifulsoup4==4.12.3
+opencv-python==4.9.0.80
+pandas==2.2.0
+python-telegram-bot==20.7
+requests==2.31.0

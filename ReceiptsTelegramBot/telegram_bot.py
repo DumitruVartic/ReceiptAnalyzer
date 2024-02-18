@@ -1,9 +1,16 @@
 import logging
 from . import receipt_handling as rh
 from os import environ
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import filters, MessageHandler, ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler
-
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, ReplyKeyboardRemove
+from telegram.ext import (
+    filters, 
+    MessageHandler, 
+    ApplicationBuilder, 
+    CommandHandler, 
+    ContextTypes, 
+    CallbackQueryHandler, 
+    ConversationHandler
+)
 Token = environ.get("TOKEN") # Get the token from the environment variables (set in .env file)
 
 logging.basicConfig(
@@ -23,6 +30,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     help_message = "Help yourself now!"
     await context.bot.send_message(chat_id=update.effective_chat.id, text=help_message)
+
+async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_message(chat_id=update.effective_chat.id, text="Bye! I hope we can talk again some day.")
+    return -1
 
 async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, text="Sorry, I didn't understand that command.")
@@ -75,12 +86,43 @@ async def handle_qrcode(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message_text = f"Here is the link to your receipt on [Sistemul Informațional Automatizat Monitorizarea Electronica a Vânzărilor]({url})"
     await context.bot.send_message(chat_id=update.effective_chat.id, text=message_text, parse_mode="MarkdownV2")
 
+async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """End the conversation."""
+    await update.message.reply_text(
+        f"Until next time!",
+        reply_markup=ReplyKeyboardRemove(),
+    )
+    return ConversationHandler.END
+
+async def choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Ask the user for a description of a custom category."""
+    
+    reply_keyboard = [
+        ["a"]
+    ]
+    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+    await update.message.reply_text(
+        'Alright, please send me the category first, for example "Most impressive skill"',
+        reply_markup=markup,
+    )
+    return 1
+
 def create_telegram_bot():
-    application = ApplicationBuilder().token(Token).build()
+    application = ApplicationBuilder().token(Token).concurrent_updates(False).build()
 
     # Standard Handlers
     application.add_handler(CommandHandler('start', start))
     application.add_handler(CommandHandler('help', help))
+    application.add_handler(CommandHandler('cancel', cancel))
+
+    # application.add_handler(ConversationHandler(
+    #     entry_points=[CommandHandler('stats', start)],
+    #     states={
+    #         1: [CommandHandler('choice', choice)]
+    #     },
+    #     fallbacks=[CommandHandler('done', done)],
+    # ))
+
     application.add_handler(CallbackQueryHandler(buttons_handler))
     application.add_handler(CommandHandler('stats', stats))
     application.add_handler(MessageHandler(filters.PHOTO, handle_qrcode))
